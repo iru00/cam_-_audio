@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kamera dan Mikrofon Preview</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #2c3e50;
+            font-family: 'Arial', sans-serif;
+            color: #ecf0f1;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-size: 2rem;
+            color: #ecf0f1;
+        }
+
+        #video {
+            border: 3px solid #3498db;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            width: 640px;
+            height: 480px;
+            margin-bottom: 20px;
+            filter: brightness(1.5);
+            transform: scaleX(-1);
+        }
+
+        #audio {
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            height: 50px;
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            display: none;
+        }
+
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        button {
+            background-color: #3498db;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            background-color: #1f618d;
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Kamera dan Mikrofon Preview</h1>
+    <video id="video" autoplay></video>
+    <audio id="audio" controls></audio>
+    <canvas id="canvas"></canvas>
+    <div class="button-container">
+        <button id="capture">Capture Photo</button>
+        <button id="startVideo">Start Recording Video</button>
+        <button id="stopVideo" disabled>Stop Recording Video</button>
+        <button id="startAudio">Start Recording Audio</button>
+        <button id="stopAudio" disabled>Stop Recording Audio</button>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const audio = document.getElementById('audio');
+        const canvas = document.getElementById('canvas');
+        const captureButton = document.getElementById('capture');
+        const startVideoButton = document.getElementById('startVideo');
+        const stopVideoButton = document.getElementById('stopVideo');
+        const startAudioButton = document.getElementById('startAudio');
+        const stopAudioButton = document.getElementById('stopAudio');
+
+        let mediaStream = null;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+
+        async function startMedia() {
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                video.srcObject = mediaStream;
+                audio.srcObject = mediaStream;
+
+                // Setup for video recording
+                mediaRecorder = new MediaRecorder(mediaStream);
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'video.webm';
+                    a.click();
+                    recordedChunks = [];
+                };
+
+                // Setup for audio recording
+                const audioRecorder = new MediaRecorder(mediaStream);
+                audioRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+                audioRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'audio/wav' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'audio.wav';
+                    a.click();
+                    recordedChunks = [];
+                };
+
+                startVideoButton.addEventListener('click', () => {
+                    mediaRecorder.start();
+                    startVideoButton.disabled = true;
+                    stopVideoButton.disabled = false;
+                });
+
+                stopVideoButton.addEventListener('click', () => {
+                    mediaRecorder.stop();
+                    startVideoButton.disabled = false;
+                    stopVideoButton.disabled = true;
+                });
+
+                startAudioButton.addEventListener('click', () => {
+                    audioRecorder.start();
+                    startAudioButton.disabled = true;
+                    stopAudioButton.disabled = false;
+                });
+
+                stopAudioButton.addEventListener('click', () => {
+                    audioRecorder.stop();
+                    startAudioButton.disabled = false;
+                    stopAudioButton.disabled = true;
+                });
+
+                captureButton.addEventListener('click', () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    const context = canvas.getContext('2d');
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    canvas.toBlob((blob) => {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'photo.png';
+                        a.click();
+                    });
+                });
+
+            } catch (error) {
+                console.error('Error accessing media devices: ', error);
+            }
+        }
+
+        startMedia();
+    </script>
+</body>
+
+</html>
